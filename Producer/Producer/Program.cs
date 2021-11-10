@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,8 +25,25 @@ namespace Producer
                 {
                     Console.WriteLine("Enter a message:");
                     var streamValue = Console.ReadLine();
-                    var id = await db.StreamAddAsync(redisOptions.StreamName, "Message", streamValue);
-                    Console.WriteLine($"Wrote id {id} to stream {redisOptions.StreamName}");
+                    if (streamValue.Equals("boom"))
+                    {
+                       
+                        for (var x = 0; x < 500; x++)
+                        {
+                            db.StreamAddAsync(redisOptions.StreamName, "Message", $"Message {x}");
+                        }
+                    }
+                    else if (streamValue.Equals("clear"))
+                    {
+                        var results = db.StreamRead(redisOptions.StreamName, "0-0");
+                        db.StreamDelete(redisOptions.StreamName, results.Select(x => x.Id).ToArray());
+                    }
+                    else
+                    {
+                        var id = await db.StreamAddAsync(redisOptions.StreamName, "Message", streamValue);
+                        Console.WriteLine($"Wrote id {id} to stream {redisOptions.StreamName}");
+
+                    }
                 }
             }
         }

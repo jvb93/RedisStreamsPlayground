@@ -1,10 +1,8 @@
-﻿using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
+using System;
+using System.Threading.Tasks;
 
 namespace Consumer
 {
@@ -16,43 +14,21 @@ namespace Consumer
 
             using (var scope = serviceProvider.CreateScope())
             {
-                var redis = scope.ServiceProvider.GetRequiredService<ConnectionMultiplexer>();
-                var redisOptions = scope.ServiceProvider.GetRequiredService<RedisOptions>();
-                var db = redis.GetDatabase();
-
-                string lastReceived = "";
-                Console.WriteLine("Catching up!");
-                var results = await db.StreamReadAsync(redisOptions.StreamName, "0-0");
-                WriteStreamContent(results);
-                lastReceived = results.Last().Id;
-                var lastReadTime = DateTime.Now;
-                    
-                while (true)
+                var redisStreamConsumer = scope.ServiceProvider.GetRequiredService<IRedisStreamConsumer>();
+                var settings = scope.ServiceProvider.GetRequiredService<RedisOptions>();
+                if (!string.IsNullOrWhiteSpace(settings.ConsumerGroupName))
                 {
-                    results = await db.StreamReadAsync(redisOptions.StreamName, lastReceived);
-                    if (results.Any())
-                    {
-                        WriteStreamContent(results);
-                        lastReceived = results.Last().Id;
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Nothing new since {lastReadTime:T}");
-                    }
-
-                    lastReadTime = DateTime.Now;
-                    await Task.Delay(1000);
+                    redisStreamConsumer.BeginReadWithConsumerGroup();
                 }
+                else
+                {
+                    redisStreamConsumer.BeginRead();
+                }
+
             }
         }
 
-        static void WriteStreamContent(StreamEntry[] streamEntries)
-        {
-            foreach (var streamEntry in streamEntries)
-            {
-                Console.WriteLine($"{streamEntry.Id} - {streamEntry.Values.First().Name}: {streamEntry.Values.First().Value}");
-            }
-        }
+       
 
         static IServiceProvider BuildServiceProvider()
         {
@@ -66,6 +42,7 @@ namespace Consumer
 
             serviceCollection.AddSingleton(localOptions);
             serviceCollection.AddSingleton(ConnectionMultiplexer.Connect($"{localOptions.Host}:{localOptions.Port}"));
+            serviceCollection.AddScoped<IRedisStreamConsumer, RedisStreamConsumer>();
 
             return serviceCollection.BuildServiceProvider();
         }
