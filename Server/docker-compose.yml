@@ -1,0 +1,22 @@
+version: "3"
+services:
+  redis:
+    image: "redis"
+    container_name: "redis"
+    networks:
+      - redis
+    ports:
+      - "6379:6379"
+  redis-insight:
+    container_name: redis-insight
+    image: redislabs/redisinsight:latest
+    environment:
+        REDIS_HOST: redis
+    ports:
+      - "8001:8001"
+    networks:
+      - redis
+
+networks:
+  redis:
+    driver: bridge
