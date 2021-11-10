@@ -1,4 +1,4 @@
-namespace Producer
+﻿namespace Consumer
 {
     public class RedisOptions
     {
